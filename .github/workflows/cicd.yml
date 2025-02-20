@@ -1,4 +1,5 @@
-name: backend
+name: Deploy backend
+
 on:
   push:
     branches:
@@ -7,24 +8,33 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
-      - name: Login to docker hub
-        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Build Docker Image
-        run: docker build -t basavaraj684/backend .
-      - name: Publish Image to docker hub
+        run: docker build -t basavaraj684/backend:latest .
+
+      - name: Publish Image to Docker Hub
         run: docker push basavaraj684/backend:latest
 
   deploy:
     needs: build
     runs-on: self-hosted
+
     steps:
-      - name: Pull image from docker hub
+      - name: Pull latest image from Docker Hub
         run: docker pull basavaraj684/backend:latest
-      - name: Delete old container
-        run: docker rm -f ecom-backend-container
+
+      - name: Stop and remove old container (if exists)
+        run: docker rm -f ecom-backend-container || true
+
       - name: Run Docker Container
-        run: docker run -d -p 5555:5555 --name ecom-backend-container  -e MONGO_PASSWORD='${{ secrets.MONGO_PASSWORD }}' basavaraj684/backend
+        run: |
+          docker run -d -p 5555:5555 --name ecom-backend-container \
+          -e MONGO_PASSWORD="${{ secrets.MONGO_PASSWORD }}" \
+          basavaraj684/backend:latest
